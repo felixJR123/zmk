@@ -951,14 +951,21 @@ static void split_central_connected(struct bt_conn *conn, uint8_t conn_err) {
 static void split_central_disconnected(struct bt_conn *conn, uint8_t reason) {
     char addr[BT_ADDR_LE_STR_LEN];
     int err;
+    int slot_idx;
 
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
     LOG_DBG("Disconnected: %s (reason %d)", addr, reason);
 
+    slot_idx = peripheral_slot_index_for_conn(conn);
+    if (slot_idx < 0) {
+        LOG_WRN("Disconnected peripheral was not assigned to a slot (%d)", slot_idx);
+        return;
+    }
+
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING)
     struct peripheral_event_wrapper ev = {
-        .source = peripheral_slot_index_for_conn(conn),
+        .source = slot_idx,
         .event = {.type = ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_BATTERY_EVENT,
                   .data = {.battery_event = {
                                .level = 0,
@@ -972,7 +979,7 @@ static void split_central_disconnected(struct bt_conn *conn, uint8_t reason) {
     release_peripheral_input_subs(conn);
 #endif
 
-    err = release_peripheral_slot_for_conn(conn);
+    err = release_peripheral_slot(slot_idx);
 
     if (err < 0) {
         LOG_WRN("Failed to release peripheral slot (%d)", err);
@@ -1217,10 +1224,11 @@ static int split_central_bt_set_enabled(bool enabled) {
                 err = bt_conn_disconnect(peripherals[i].conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
                 if (err < 0) {
                     LOG_WRN("Failed to disconnect peripheral slot %d (%d)", i, err);
-                    err = release_peripheral_slot(i);
-                    if (err < 0) {
-                        LOG_WRN("Failed to release peripheral slot %d (%d)", i, err);
-                    }
+                }
+
+                err = release_peripheral_slot(i);
+                if (err < 0) {
+                    LOG_WRN("Failed to release peripheral slot %d (%d)", i, err);
                 }
 
                 continue;

@@ -380,6 +380,10 @@ int zmk_ble_set_device_name(char *name) {
 __attribute__((weak)) void zmk_ble_peripheral_addr_stored(uint8_t index,
                                                           const bt_addr_le_t *addr) {}
 
+__attribute__((weak)) bool zmk_ble_peripheral_addr_allowed(const bt_addr_le_t *addr) {
+    return true;
+}
+
 bt_addr_le_t *zmk_ble_peripheral_addr(uint8_t index) {
     if (index >= ZMK_SPLIT_BLE_PERIPHERAL_COUNT) {
         return (bt_addr_le_t *)BT_ADDR_LE_NONE;
@@ -421,6 +425,10 @@ int zmk_ble_put_peripheral_addr(const bt_addr_le_t *addr) {
         // slot and return index. This compares against BT_ADDR_LE_ANY as that
         // is the zero value.
         if (bt_addr_le_cmp(&peripheral_addrs[i], BT_ADDR_LE_ANY) == 0) {
+            if (!zmk_ble_peripheral_addr_allowed(addr)) {
+                return -EACCES;
+            }
+
             char addr_str[BT_ADDR_LE_STR_LEN];
             bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
             LOG_DBG("Storing peripheral %s in slot %d", addr_str, i);
