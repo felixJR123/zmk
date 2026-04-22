@@ -421,6 +421,10 @@ int zmk_ble_set_peripheral_count(uint8_t count) {
 }
 
 int zmk_ble_put_peripheral_addr(const bt_addr_le_t *addr) {
+    if (!zmk_ble_peripheral_addr_allowed(addr)) {
+        return -EACCES;
+    }
+
     for (int i = 0; i < peripheral_count; i++) {
         // If the address is recognized and already stored in settings, return
         // index and no additional action is necessary.
@@ -438,10 +442,6 @@ int zmk_ble_put_peripheral_addr(const bt_addr_le_t *addr) {
         // slot and return index. This compares against BT_ADDR_LE_ANY as that
         // is the zero value.
         if (bt_addr_le_cmp(&peripheral_addrs[i], BT_ADDR_LE_ANY) == 0) {
-            if (!zmk_ble_peripheral_addr_allowed(addr)) {
-                return -EACCES;
-            }
-
             char addr_str[BT_ADDR_LE_STR_LEN];
             bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
             LOG_DBG("Storing peripheral %s in slot %d", addr_str, i);
