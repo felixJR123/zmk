@@ -80,6 +80,7 @@ static struct bt_data zmk_ble_ad[] = {
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE) && IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
 
 static bt_addr_le_t peripheral_addrs[ZMK_SPLIT_BLE_PERIPHERAL_COUNT];
+static uint8_t peripheral_count = ZMK_SPLIT_BLE_PERIPHERAL_COUNT;
 
 #endif /* IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL) */
 
@@ -408,8 +409,19 @@ int zmk_ble_set_peripheral_addr(uint8_t index, const bt_addr_le_t *addr) {
     return 0;
 }
 
+uint8_t zmk_ble_peripheral_count(void) { return peripheral_count; }
+
+int zmk_ble_set_peripheral_count(uint8_t count) {
+    if (count > ZMK_SPLIT_BLE_PERIPHERAL_COUNT) {
+        return -EINVAL;
+    }
+
+    peripheral_count = count;
+    return 0;
+}
+
 int zmk_ble_put_peripheral_addr(const bt_addr_le_t *addr) {
-    for (int i = 0; i < ZMK_SPLIT_BLE_PERIPHERAL_COUNT; i++) {
+    for (int i = 0; i < peripheral_count; i++) {
         // If the address is recognized and already stored in settings, return
         // index and no additional action is necessary.
         if (bt_addr_le_cmp(&peripheral_addrs[i], addr) == 0) {

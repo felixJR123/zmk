@@ -908,7 +908,7 @@ static int start_scanning(void) {
 
     // If all the devices are connected, there is no need to scan.
     bool has_unconnected = false;
-    for (int i = 0; i < CONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS; i++) {
+    for (int i = 0; i < zmk_ble_peripheral_count(); i++) {
         if (peripherals[i].conn == NULL) {
             has_unconnected = true;
             break;
@@ -1198,7 +1198,7 @@ static int split_central_bt_send_command(uint8_t source,
 
 static int split_central_bt_get_available_source_ids(uint8_t *sources) {
     int count = 0;
-    for (int i = 0; i < ZMK_SPLIT_BLE_PERIPHERAL_COUNT; i++) {
+    for (int i = 0; i < zmk_ble_peripheral_count(); i++) {
         if (peripherals[i].state != PERIPHERAL_SLOT_STATE_CONNECTED) {
             continue;
         }
@@ -1280,7 +1280,7 @@ static struct zmk_split_transport_status split_central_bt_get_status() {
 
     if (count == 0) {
         conn_status = ZMK_SPLIT_TRANSPORT_CONNECTIONS_STATUS_DISCONNECTED;
-    } else if (count == ZMK_SPLIT_BLE_PERIPHERAL_COUNT) {
+    } else if (count == zmk_ble_peripheral_count()) {
         conn_status = ZMK_SPLIT_TRANSPORT_CONNECTIONS_STATUS_ALL_CONNECTED;
     } else {
         conn_status = ZMK_SPLIT_TRANSPORT_CONNECTIONS_STATUS_SOME_CONNECTED;

@@ -48,6 +48,8 @@ int zmk_ble_set_device_name(char *name);
 int zmk_ble_put_peripheral_addr(const bt_addr_le_t *addr);
 bt_addr_le_t *zmk_ble_peripheral_addr(uint8_t index);
 int zmk_ble_set_peripheral_addr(uint8_t index, const bt_addr_le_t *addr);
+uint8_t zmk_ble_peripheral_count(void);
+int zmk_ble_set_peripheral_count(uint8_t count);
 bool zmk_ble_peripheral_addr_allowed(const bt_addr_le_t *addr);
 void zmk_ble_peripheral_addr_stored(uint8_t index, const bt_addr_le_t *addr);
 #endif /* IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL) */
