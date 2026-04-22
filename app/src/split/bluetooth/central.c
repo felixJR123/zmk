@@ -169,6 +169,20 @@ struct peripheral_slot *peripheral_slot_for_conn(struct bt_conn *conn) {
     return &peripherals[idx];
 }
 
+static void raise_peripheral_battery_level(uint8_t source, uint8_t level) {
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING)
+    struct peripheral_event_wrapper ev = {
+        .source = source,
+        .event = {.type = ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_BATTERY_EVENT,
+                  .data = {.battery_event = {
+                               .level = level,
+                           }}}};
+
+    k_msgq_put(&peripheral_event_msgq, &ev, K_NO_WAIT);
+    k_work_submit(&peripheral_event_work);
+#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING)
+}
+
 int release_peripheral_slot(int index) {
     if (index < 0 || index >= ZMK_SPLIT_BLE_PERIPHERAL_COUNT) {
         return -EINVAL;
@@ -176,11 +190,9 @@ int release_peripheral_slot(int index) {
 
     struct peripheral_slot *slot = &peripherals[index];
 
-    if (slot->state == PERIPHERAL_SLOT_STATE_OPEN) {
-        return -EINVAL;
-    }
-
     LOG_DBG("Releasing peripheral slot at %d", index);
+
+    raise_peripheral_battery_level(index, 0);
 
     if (slot->conn != NULL) {
         bt_conn_unref(slot->conn);
@@ -963,18 +975,6 @@ static void split_central_disconnected(struct bt_conn *conn, uint8_t reason) {
         return;
     }
 
-#if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING)
-    struct peripheral_event_wrapper ev = {
-        .source = slot_idx,
-        .event = {.type = ZMK_SPLIT_TRANSPORT_PERIPHERAL_EVENT_TYPE_BATTERY_EVENT,
-                  .data = {.battery_event = {
-                               .level = 0,
-                           }}}};
-
-    k_msgq_put(&peripheral_event_msgq, &ev, K_NO_WAIT);
-    k_work_submit(&peripheral_event_work);
-#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING)
-
 #if IS_ENABLED(CONFIG_ZMK_INPUT_SPLIT)
     release_peripheral_input_subs(conn);
 #endif
@@ -1209,6 +1209,21 @@ static int split_central_bt_get_available_source_ids(uint8_t *sources) {
     return count;
 }
 
+static void disconnect_central_role_conn(struct bt_conn *conn, void *data) {
+    ARG_UNUSED(data);
+
+    struct bt_conn_info info;
+    int err = bt_conn_get_info(conn, &info);
+    if (err < 0 || info.role != BT_CONN_ROLE_CENTRAL) {
+        return;
+    }
+
+    err = bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+    if (err < 0) {
+        LOG_WRN("Failed to disconnect untracked central-role connection (%d)", err);
+    }
+}
+
 static int split_central_bt_set_enabled(bool enabled) {
     is_enabled = enabled;
     if (enabled) {
@@ -1243,6 +1258,8 @@ static int split_central_bt_set_enabled(bool enabled) {
                 LOG_WRN("Failed to release peripheral slot %d (%d)", i, err);
             }
         }
+
+        bt_conn_foreach(BT_CONN_TYPE_LE, disconnect_central_role_conn, NULL);
 
         return 0;
     }
