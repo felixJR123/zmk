@@ -426,6 +426,7 @@ int zmk_ble_put_peripheral_addr(const bt_addr_le_t *addr) {
         // index and no additional action is necessary.
         if (bt_addr_le_cmp(&peripheral_addrs[i], addr) == 0) {
             LOG_DBG("Found existing peripheral address in slot %d", i);
+            zmk_ble_peripheral_addr_stored(i, addr);
             return i;
         } else {
             char addr_str[BT_ADDR_LE_STR_LEN];
