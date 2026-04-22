@@ -377,6 +377,33 @@ int zmk_ble_set_device_name(char *name) {
 
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE) && IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
 
+__attribute__((weak)) void zmk_ble_peripheral_addr_stored(uint8_t index,
+                                                          const bt_addr_le_t *addr) {}
+
+bt_addr_le_t *zmk_ble_peripheral_addr(uint8_t index) {
+    if (index >= ZMK_SPLIT_BLE_PERIPHERAL_COUNT) {
+        return (bt_addr_le_t *)BT_ADDR_LE_NONE;
+    }
+
+    return &peripheral_addrs[index];
+}
+
+int zmk_ble_set_peripheral_addr(uint8_t index, const bt_addr_le_t *addr) {
+    if (index >= ZMK_SPLIT_BLE_PERIPHERAL_COUNT) {
+        return -EINVAL;
+    }
+
+    bt_addr_le_copy(&peripheral_addrs[index], addr);
+
+#if IS_ENABLED(CONFIG_SETTINGS)
+    char setting_name[32];
+    sprintf(setting_name, "ble/peripheral_addresses/%d", index);
+    settings_save_one(setting_name, addr, sizeof(bt_addr_le_t));
+#endif // IS_ENABLED(CONFIG_SETTINGS)
+
+    return 0;
+}
+
 int zmk_ble_put_peripheral_addr(const bt_addr_le_t *addr) {
     for (int i = 0; i < ZMK_SPLIT_BLE_PERIPHERAL_COUNT; i++) {
         // If the address is recognized and already stored in settings, return
@@ -404,6 +431,7 @@ int zmk_ble_put_peripheral_addr(const bt_addr_le_t *addr) {
             sprintf(setting_name, "ble/peripheral_addresses/%d", i);
             settings_save_one(setting_name, addr, sizeof(bt_addr_le_t));
 #endif // IS_ENABLED(CONFIG_SETTINGS)
+            zmk_ble_peripheral_addr_stored(i, addr);
             return i;
         }
     }

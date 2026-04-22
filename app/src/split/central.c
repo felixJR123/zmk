@@ -110,6 +110,14 @@ int zmk_split_central_invoke_behavior(uint8_t source, struct zmk_behavior_bindin
     return active_transport->api->send_command(source, command);
 };
 
+int zmk_split_central_set_enabled(bool enabled) {
+    if (!active_transport || !active_transport->api || !active_transport->api->set_enabled) {
+        return -ENODEV;
+    }
+
+    return active_transport->api->set_enabled(enabled);
+}
+
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
 
 int zmk_split_central_update_hid_indicator(zmk_hid_indicators_t indicators) {
