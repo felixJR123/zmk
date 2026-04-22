@@ -1208,18 +1208,31 @@ static int split_central_bt_set_enabled(bool enabled) {
         return start_scanning();
     } else {
         int err = stop_scanning();
-        if (err < 0) {
+        if (err < 0 && err != -EALREADY) {
             LOG_WRN("Failed to stop scanning for peripherals (%d)", err);
         }
 
         for (int i = 0; i < ZMK_SPLIT_BLE_PERIPHERAL_COUNT; i++) {
-            if (peripherals[i].state != PERIPHERAL_SLOT_STATE_CONNECTED) {
+            if (peripherals[i].conn != NULL) {
+                err = bt_conn_disconnect(peripherals[i].conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+                if (err < 0) {
+                    LOG_WRN("Failed to disconnect peripheral slot %d (%d)", i, err);
+                    err = release_peripheral_slot(i);
+                    if (err < 0) {
+                        LOG_WRN("Failed to release peripheral slot %d (%d)", i, err);
+                    }
+                }
+
                 continue;
             }
 
-            err = bt_conn_disconnect(peripherals[i].conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+            if (peripherals[i].state == PERIPHERAL_SLOT_STATE_OPEN) {
+                continue;
+            }
+
+            err = release_peripheral_slot(i);
             if (err < 0) {
-                LOG_WRN("Failed to disconnect a peripheral (%d)", err);
+                LOG_WRN("Failed to release peripheral slot %d (%d)", i, err);
             }
         }
 
